@@ -1,0 +1,14 @@
+{
+  "name": "Francheville et Prairay – suivi de crise",
+  "short_name": "Crise Francheville",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e8ebe3",
+  "theme_color": "#1f4d3a",
+  "lang": "fr",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Francheville et Prairay – suivi de crise</title>
+<meta name="theme-color" content="#1f4d3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Crise Francheville">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#e8ebe3; --panel:#fbfcf8; --ink:#17201b; --muted:#5b665f; --line:#c6ccc2;
+  --road:#ffffff; --roadcase:#b3b9ad; --bldline:rgba(0,0,0,.35);
+  --water:#5d9fd0; --water-a:#a9cce6; --accent:#1f4d3a; --me:#0a64e0;
+  --s-nv:#a9afa6; --s-ok:#2c8a4b; --s-abs:#e3a500; --s-nr:#cf2238; --s-aide:#8a3dbf; --s-evac:#1d6bd3; --s-vide:#59605b;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181d1a; --panel:#222925; --ink:#e6ebe4; --muted:#9aa49d; --line:#39433d;
+    --road:#3a443f; --roadcase:#2b332f; --bldline:rgba(255,255,255,.25);
+    --water:#3f7fae; --water-a:#284a63; --accent:#7cc39c; --me:#5aa2ff;
+    --s-nv:#59635d;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:.6rem;padding:.5rem .7rem;background:var(--panel);border-bottom:3px solid var(--accent)}
+header h1{flex:1;font-size:1.05rem;margin:0;font-weight:750;letter-spacing:-.01em;line-height:1.15}
+header h1 small{display:block;font-weight:500;font-size:.78rem;color:var(--muted);letter-spacing:0}
+.hbtn{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:.45rem .75rem;font-weight:600}
+
+#chips{display:flex;gap:.35rem;overflow-x:auto;padding:.45rem .6rem;background:var(--panel);border-bottom:1px solid var(--line);scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:flex;align-items:center;gap:.4rem;border:1px solid var(--line);background:transparent;border-radius:999px;padding:.25rem .7rem .25rem .45rem;font-size:.85rem}
+.chip b{font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.sw{display:inline-block;flex:none;width:.95rem;height:.95rem;border-radius:3px;background:var(--c)}
+
+main{position:relative;flex:1;min-height:0}
+#map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;display:block}
+#map.adding{cursor:crosshair}
+.casing path{fill:none;stroke:var(--roadcase);stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+.road path{fill:none;stroke:var(--road);stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+.track path{fill:none;stroke:var(--roadcase);stroke-width:2;stroke-dasharray:5 4}
+.water-l path{fill:none;stroke:var(--water);stroke-width:3;stroke-linecap:round}
+.water-a{fill:var(--water-a)}
+.b{fill:var(--s-nv);stroke:var(--bldline);stroke-width:1;vector-effect:non-scaling-stroke;cursor:pointer;transition:opacity .15s}
+.b[data-s="ok"]{fill:var(--s-ok)} .b[data-s="abs"]{fill:var(--s-abs)} .b[data-s="nr"]{fill:var(--s-nr)}
+.b[data-s="aide"]{fill:var(--s-aide)} .b[data-s="evac"]{fill:var(--s-evac)} .b[data-s="vide"]{fill:var(--s-vide)}
+.b.dim{opacity:.12}
+.annexe{fill:none;stroke:var(--bldline);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+.b.sel{stroke:var(--ink);stroke-width:3.5}
+#labels text{display:none;font-size:3.4px;font-weight:700;fill:var(--ink);text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:var(--panel);stroke-width:.9px;pointer-events:none}
+#map.zoomed #labels text{display:block}
+#me .acc{fill:var(--me);fill-opacity:.15;stroke:var(--me);stroke-opacity:.5;vector-effect:non-scaling-stroke}
+#me .dot{fill:var(--me);stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke}
+
+.ctrls{position:absolute;right:.6rem;bottom:.9rem;display:flex;flex-direction:column;gap:.4rem;z-index:3}
+.ctrls button{width:2.9rem;height:2.9rem;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:1.25rem;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.ctrls button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+#add{width:auto;padding:0 .8rem;font-size:.9rem}
+#scale{position:absolute;left:.7rem;bottom:.9rem;font-size:.75rem;color:var(--ink);z-index:3;pointer-events:none}
+#scale i{display:block;height:6px;border:2px solid var(--ink);border-top:none;margin-top:2px}
+
+#sheet{position:absolute;left:0;right:0;bottom:0;max-height:70%;overflow:auto;background:var(--panel);border-top:3px solid var(--ink);padding:.8rem .9rem calc(1rem + env(safe-area-inset-bottom,0px));z-index:5;box-shadow:0 -6px 24px rgba(0,0,0,.2)}
+@media (min-width:760px){#sheet{left:auto;top:0;width:390px;max-height:none;border-top:none;border-left:3px solid var(--ink)}}
+.sheet-head{display:flex;gap:.5rem;align-items:flex-start}
+.sheet-head input{flex:1;font-weight:700;font-size:1.05rem}
+.statuts{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin:.75rem 0}
+.st{display:flex;align-items:center;gap:.55rem;min-height:3rem;padding:.45rem .7rem;border:2px solid var(--line);border-radius:10px;background:var(--bg);font-weight:650;text-align:left;line-height:1.2}
+.st[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:var(--on,#fff)}
+.st[aria-pressed="true"] .sw{background:var(--on,#fff)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin:.55rem 0 .2rem}
+input[type=text],input[type=number],textarea,select{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem}
+textarea{resize:vertical}
+.meta{font-size:.82rem;color:var(--muted);margin:.6rem 0 .3rem}
+details{font-size:.85rem;margin-top:.3rem}
+details ol{margin:.3rem 0 0;padding-left:1.2rem}
+.danger{margin-top:.8rem;border:1px solid var(--s-nr);color:var(--s-nr);background:transparent;border-radius:8px;padding:.45rem .7rem}
+
+dialog{border:none;border-radius:14px;padding:0;width:min(32rem,94vw);max-height:88vh;background:var(--panel);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:1rem 1.1rem 1.1rem}
+.dlg h2{margin:0 0 .6rem;font-size:1.1rem}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.menu-list{display:flex;flex-direction:column;gap:.4rem;margin-top:.6rem}
+.menu-list button{text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:.6rem .75rem;font-weight:600}
+.menu-list button span{display:block;font-weight:400;font-size:.82rem;color:var(--muted)}
+.menu-list .sep{height:.4rem}
+.menu-list button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.menu-list button[aria-pressed="true"]::after{content:" (activé)";font-weight:400;color:var(--accent)}
+#list-ul{list-style:none;margin:.6rem 0 0;padding:0;max-height:58vh;overflow:auto}
+#list-ul button{display:flex;gap:.6rem;align-items:center;width:100%;text-align:left;border:none;border-bottom:1px solid var(--line);background:none;padding:.55rem .2rem}
+#list-ul .t{flex:1;min-width:0}
+#list-ul .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#list-ul .t small{color:var(--muted)}
+
+#help{position:absolute;inset:0;z-index:8;background:var(--bg);overflow:auto;padding:1.2rem 1rem 2rem}
+.help-in{max-width:40rem;margin:0 auto}
+.help-in h2{font-size:1.3rem;margin:.2rem 0 .5rem;letter-spacing:-.01em}
+.help-in ol{padding-left:1.3rem}
+.help-in li{margin:.4rem 0}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.7rem;overflow-x:auto;font-size:.8rem;line-height:1.4}
+.primary{background:var(--accent);color:var(--panel);border:none;border-radius:10px;padding:.7rem 1rem;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+
+#toast{position:fixed;left:50%;bottom:calc(1.2rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:.6rem .9rem;border-radius:10px;font-size:.9rem;max-width:90vw;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Francheville et Prairay<small>Suivi des foyers en situation de crise</small></h1>
+  <button class="hbtn" id="btn-list">Liste</button>
+  <button class="hbtn" id="btn-menu">Menu</button>
+</header>
+<div id="chips" role="toolbar" aria-label="Filtrer par statut"></div>
+<main>
+  <svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="Plan du village">
+    <g id="areas"></g><g id="lines"></g><g id="houses"></g><g id="labels"></g><g id="me"></g>
+  </svg>
+  <div id="scale"><span></span><i></i></div>
+  <div class="ctrls">
+    <button id="add" aria-pressed="false" title="Ajouter une maison absente du plan">+ Maison</button>
+    <button id="geo" aria-pressed="false" title="Ma position" aria-label="Ma position">◎</button>
+    <button id="fit" title="Voir toute la commune" aria-label="Voir toute la commune">⤢</button>
+    <button id="zin" aria-label="Zoomer">+</button>
+    <button id="zout" aria-label="Dézoomer">−</button>
+  </div>
+
+  <section id="sheet" hidden aria-label="Fiche de la maison">
+    <div class="sheet-head">
+      <input type="text" id="f-label" aria-label="Adresse ou nom des occupants" placeholder="Adresse ou nom des occupants">
+      <button class="hbtn" id="f-close">Fermer</button>
+    </div>
+    <div class="statuts" id="statuts"></div>
+    <label class="f" for="f-pers">Personnes dans le foyer</label>
+    <input type="number" id="f-pers" min="0" inputmode="numeric" placeholder="Nombre">
+    <label class="f" for="f-note">Note</label>
+    <textarea id="f-note" rows="2" placeholder="Personne fragile, animaux, véhicule, clé chez un voisin…"></textarea>
+    <p class="meta" id="f-meta"></p>
+    <details><summary>Historique</summary><ol id="f-hist"></ol></details>
+    <button class="danger" id="f-del" hidden>Supprimer cette maison ajoutée</button>
+  </section>
+
+  <section id="help" hidden>
+    <div class="help-in">
+      <div class="row" style="justify-content:space-between">
+        <h2>Charger le plan de la commune</h2>
+        <button class="hbtn" id="help-close" hidden>Fermer</button>
+      </div>
+      <p>Le plan est enregistré dans ce navigateur et fonctionne ensuite sans connexion. À faire une fois, à l’avance, tant qu’Internet fonctionne.</p>
+      <ol>
+        <li>Ouvrez <b>overpass-turbo.eu</b> sur un ordinateur.</li>
+        <li>Remplacez le texte à gauche par la requête ci-dessous, puis cliquez sur « Exécuter ».</li>
+        <li>Menu « Exporter », puis « GeoJSON » : un fichier <i>export.geojson</i> est téléchargé.</li>
+        <li>Revenez ici et chargez ce fichier.</li>
+      </ol>
+<pre id="query">[out:json][timeout:90];
+{{geocodeArea:Francheville, Côte-d'Or}}->.commune;
+(
+  way["building"](area.commune);
+  relation["building"](area.commune);
+  node["addr:housenumber"](area.commune);
+  way["highway"](area.commune);
+  way["waterway"](area.commune);
+  way["natural"="water"](area.commune);
+);
+out geom;</pre>
+      <div class="row">
+        <button class="primary" id="help-load">Charger le fichier GeoJSON</button>
+        <button class="hbtn" id="copy-q">Copier la requête</button>
+      </div>
+      <p style="font-size:.88rem;color:var(--muted)">Si la commune n’est pas trouvée, centrez la carte d’Overpass Turbo sur Francheville et Prairay, puis remplacez chaque <code>(area.commune)</code> par <code>({{bbox}})</code> et supprimez la deuxième ligne.</p>
+      <h2 style="margin-top:1.4rem">Ajouter les adresses officielles</h2>
+      <p>Une fois le plan chargé, ajoutez les adresses de la Base Adresse Nationale : chaque maison reçoit son numéro et sa rue.</p>
+      <ol>
+        <li>Sur <b>adresse.data.gouv.fr</b>, rubrique des données nationales, téléchargez le fichier des adresses de la Côte-d’Or : <i>adresses-21.csv.gz</i>.</li>
+        <li>Chargez-le ici tel quel (Menu, « Charger un fichier ») : seules les adresses de Francheville (code INSEE 21284) sont gardées.</li>
+      </ol>
+      <p style="font-size:.88rem;color:var(--muted)">Vous pouvez aussi charger ici une sauvegarde complète faite depuis un autre appareil.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-menu"><div class="dlg">
+  <div class="dlg-head"><h2>Menu</h2><button class="hbtn" data-close>Fermer</button></div>
+  <label class="f" for="agent">Votre nom (noté dans l’historique)</label>
+  <input type="text" id="agent" placeholder="Prénom, équipe…">
+  <div class="menu-list">
+    <button id="m-load">Charger un fichier<span>Plan GeoJSON, adresses BAN (CSV), suivi d’une autre équipe ou sauvegarde complète</span></button>
+    <button id="m-suivi">Exporter le suivi<span>Fichier à transmettre au PC de crise ou aux autres équipes</span></button>
+    <button id="m-csv">Exporter le tableau (CSV)<span>S’ouvre dans un tableur</span></button>
+    <button id="m-full">Sauvegarde complète<span>Plan et suivi, pour installer un autre appareil</span></button>
+    <button id="m-help">Obtenir le plan<span>Mode d’emploi Overpass Turbo</span></button>
+    <button id="m-only" aria-pressed="false">Masquer les bâtiments sans adresse<span>Granges et annexes restent dessinées en contour, sans fiche. À utiliser une fois les adresses chargées.</span></button>
+    <div class="sep"></div>
+    <button id="m-reset">Remettre tous les statuts à zéro</button>
+    <button id="m-clear">Effacer le plan de ce navigateur</button>
+  </div>
+</div></dialog>
+
+<dialog id="dlg-list"><div class="dlg">
+  <div class="dlg-head"><h2>Liste des maisons</h2><button class="hbtn" data-close>Fermer</button></div>
+  <select id="list-filter" aria-label="Filtrer la liste"></select>
+  <p class="meta" id="list-sum"></p>
+  <ul id="list-ul"></ul>
+</div></dialog>
+
+<input type="file" id="file" accept=".geojson,.json,.csv,.gz,application/json,application/geo+json,text/csv,application/gzip" hidden>
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+
+const STATUTS = [
+  {k:'nv',   l:'Non visité',            c:'À voir',       on:'#17201b'},
+  {k:'ok',   l:'Contacté, tout va bien', c:'OK'},
+  {k:'abs',  l:'Absent',                c:'Absents',      on:'#17201b'},
+  {k:'nr',   l:'Ne répond pas',         c:'Sans réponse'},
+  {k:'aide', l:'Besoin d’aide',         c:'Aide'},
+  {k:'evac', l:'Évacué',                c:'Évacués'},
+  {k:'vide', l:'Inhabité / sans objet', c:'Sans objet'}
+];
+const LBL = Object.fromEntries(STATUTS.map(s => [s.k, s.l]));
+const ORDER = Object.fromEntries(STATUTS.map((s,i) => [s.k, i]));
+const KEY_PLAN = 'francheville.plan', KEY_SUIVI = 'francheville.suivi', KEY_AGENT = 'francheville.agent';
+const KEY_BAN = 'francheville.ban', KEY_OPTS = 'francheville.options';
+const INSEE = '21284'; // Francheville (Côte-d'Or)
+
+function load(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
+function store(k, v){
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch(e){ toast('Enregistrement impossible dans ce navigateur. Exportez le suivi pour ne rien perdre.'); return false; }
+}
+
+let PLAN = load(KEY_PLAN, null);
+let SUIVI = load(KEY_SUIVI, null) || {houses:{}, custom:[]};
+SUIVI.houses = SUIVI.houses || {}; SUIVI.custom = SUIVI.custom || [];
+let agent = ''; try { agent = localStorage.getItem(KEY_AGENT) || ''; } catch(e){}
+const saveSuivi = () => store(KEY_SUIVI, SUIVI);
+let BAN = load(KEY_BAN, null);            // adresses de la Base Adresse Nationale
+let OPTS = load(KEY_OPTS, {onlyAddr:false});
+let OTHERS = [];                           // bâtiments masqués (annexes, granges)
+
+const svg = $('#map'), gAreas = $('#areas'), gLines = $('#lines'), gHouses = $('#houses'), gLabels = $('#labels'), gMe = $('#me');
+let P = null, HOUSES = [], filter = null, current = null, addMode = false;
+const byId = new Map(), elById = new Map();
+
+/* ---------- Lecture du GeoJSON ---------- */
+const r6 = n => Math.round(n * 1e6) / 1e6;
+const ringOf = c => c.map(p => [r6(p[0]), r6(p[1])]);
+function pip(pt, ring){
+  let x = pt[0], y = pt[1], inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function parseGeoJSON(gj){
+  const buildings = [], lines = [], areas = [], addr = [];
+  (gj.features || []).forEach((f, i) => {
+    const g = f.geometry, p = f.properties || {};
+    if (!g) return;
+    const id = String(p['@id'] || f.id || ('f' + i));
+    const label = p.name || [p['addr:housenumber'], p['addr:street']].filter(Boolean).join(' ');
+    const t = g.type;
+    const outer = () => t === 'Polygon' ? [g.coordinates[0]] : g.coordinates.map(pl => pl[0]);
+    if (p.building && (t === 'Polygon' || t === 'MultiPolygon')){
+      buildings.push({id, label, rings: outer().map(ringOf)});
+    } else if (p.building && t === 'Point'){
+      buildings.push({id, label, pt: ringOf([g.coordinates])[0]});
+    } else if (t === 'Point' && p['addr:housenumber']){
+      addr.push({id, label, pt: [g.coordinates[0], g.coordinates[1]]});
+    } else if ((t === 'LineString' || t === 'MultiLineString') && (p.highway || p.waterway)){
+      const parts = t === 'LineString' ? [g.coordinates] : g.coordinates;
+      const kind = p.waterway ? 'water' : (['track','path','footway','bridleway','cycleway','steps'].includes(p.highway) ? 'track' : 'road');
+      parts.forEach(c => lines.push({kind, coords: ringOf(c)}));
+    } else if ((t === 'Polygon' || t === 'MultiPolygon') && (p.natural === 'water' || p.waterway === 'riverbank' || p.landuse === 'reservoir')){
+      outer().forEach(r => areas.push({kind:'water', ring: ringOf(r)}));
+    }
+  });
+  // Les numéros posés à part sur la carte servent d'étiquette au bâtiment qui les contient
+  addr.forEach(a => {
+    const b = buildings.find(b => b.rings && b.rings.some(r => pip(a.pt, r)));
+    if (b){ if (!b.label) b.label = a.label; }
+    else buildings.push({id: a.id, label: a.label, pt: ringOf([a.pt])[0]});
+  });
+  if (!buildings.length) throw new Error('Aucun bâtiment dans ce fichier. Vérifiez la requête (Menu, « Obtenir le plan »).');
+  return {v:1, loaded: Date.now(), buildings, lines, areas};
+}
+
+/* ---------- Projection (mètres autour du centre du village) ---------- */
+function setupProjection(){
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+  const take = p => { if (p[0] < minx) minx = p[0]; if (p[0] > maxx) maxx = p[0]; if (p[1] < miny) miny = p[1]; if (p[1] > maxy) maxy = p[1]; };
+  PLAN.buildings.forEach(b => b.rings ? b.rings.forEach(r => r.forEach(take)) : take(b.pt));
+  const lon0 = (minx + maxx) / 2, lat0 = (miny + maxy) / 2;
+  P = {lon0, lat0, kx: 111320 * Math.cos(lat0 * Math.PI / 180), ky: 110540};
+}
+const proj = ([lon, lat]) => [(lon - P.lon0) * P.kx, -(lat - P.lat0) * P.ky];
+const unproj = ([x, y]) => [r6(P.lon0 + x / P.kx), r6(P.lat0 - y / P.ky)];
+
+function centroid(ring){
+  let n = ring.length, x = 0, y = 0;
+  if (n > 1 && ring[0][0] === ring[n-1][0] && ring[0][1] === ring[n-1][1]) n--;
+  for (let i = 0; i < n; i++){ x += ring[i][0]; y += ring[i][1]; }
+  return [x / n, y / n];
+}
+function buildHouses(){
+  HOUSES = []; byId.clear();
+  const add = h => { HOUSES.push(h); byId.set(h.id, h); };
+  PLAN.buildings.forEach(b => {
+    const h = {id: b.id, label: b.label || ''};
+    if (b.rings){ h.rings = b.rings.map(r => r.map(proj)); h.c = centroid(h.rings[0]); }
+    else { h.pt = proj(b.pt); h.c = h.pt; }
+    add(h);
+  });
+  // Adresses officielles (BAN) : rattachées au bâtiment qui les contient, sinon au plus proche (30 m)
+  if (BAN && BAN.items){
+    const polys = HOUSES.filter(h => h.rings);
+    BAN.items.forEach(a => {
+      const p = proj(a.ll);
+      let h = polys.find(h => h.rings.some(r => pip(p, r)));
+      if (!h){
+        let bd = 30 * 30;
+        polys.forEach(c => { if (c.ban) return; const dx = c.c[0] - p[0], dy = c.c[1] - p[1], d = dx * dx + dy * dy; if (d < bd){ bd = d; h = c; } });
+      }
+      if (h) (h.ban = h.ban || []).push(a.l);
+      else add({id: 'ban/' + a.id, label: a.l, pt: p, c: p, ban: [a.l]});
+    });
+    HOUSES.forEach(h => { if (h.ban) h.label = h.ban.join(' / '); });
+  }
+  SUIVI.custom.forEach(c => { const pt = proj([c.lon, c.lat]); add({id: c.id, label: '', pt, c: pt, custom: true}); });
+  OTHERS = [];
+  if (OPTS.onlyAddr){
+    const keep = h => h.custom || h.label || SUIVI.houses[h.id];
+    OTHERS = HOUSES.filter(h => !keep(h));
+    HOUSES = HOUSES.filter(keep);
+    OTHERS.forEach(h => byId.delete(h.id));
+  }
+}
+
+/* ---------- Dessin ---------- */
+const f1 = n => n.toFixed(1);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const pathOf = rings => rings.map(r => 'M' + r.map(p => f1(p[0]) + ' ' + f1(p[1])).join('L') + 'Z').join('');
+const statusOf = id => (SUIVI.houses[id] || {}).status || 'nv';
+const labelOf = h => { const r = SUIVI.houses[h.id]; return (r && r.label) || h.label || ''; };
+const numberOf = h => { const m = labelOf(h).match(/^\d+\s?(bis|ter|[a-zA-Z])?\b/); return m ? m[0].replace(/\s/g,'') : ''; };
+
+function render(){
+  gAreas.innerHTML = PLAN.areas.map(a => `<path class="water-a" d="${pathOf([a.ring.map(proj)])}"/>`).join('');
+  let cas = '', rd = '', tr = '', wt = '';
+  PLAN.lines.forEach(l => {
+    const d = 'M' + l.coords.map(p => { const q = proj(p); return f1(q[0]) + ' ' + f1(q[1]); }).join('L');
+    const s = `<path d="${d}"/>`;
+    if (l.kind === 'road'){ cas += s; rd += s; } else if (l.kind === 'track') tr += s; else wt += s;
+  });
+  gLines.innerHTML = `<g class="water-l">${wt}</g><g class="track">${tr}</g><g class="casing">${cas}</g><g class="road">${rd}</g>`;
+  renderHouses();
+}
+function renderHouses(){
+  let s = OTHERS.map(h => h.rings ? `<path class="annexe" d="${pathOf(h.rings)}"/>` : '').join('');
+  HOUSES.forEach(h => {
+    const a = `class="b${h.pt ? ' pt' : ''}" data-id="${esc(h.id)}" data-s="${statusOf(h.id)}"`;
+    s += h.rings ? `<path ${a} d="${pathOf(h.rings)}"/>` : `<circle ${a} cx="${f1(h.pt[0])}" cy="${f1(h.pt[1])}" r="4.5"/>`;
+  });
+  gHouses.innerHTML = s;
+  elById.clear();
+  gHouses.querySelectorAll('[data-id]').forEach(el => elById.set(el.getAttribute('data-id'), el));
+  renderLabels(); applyFilter();
+  if (current && elById.has(current)) elById.get(current).classList.add('sel');
+}
+function renderLabels(){
+  gLabels.innerHTML = HOUSES.map(h => { const n = numberOf(h); return n ? `<text x="${f1(h.c[0])}" y="${f1(h.c[1])}">${esc(n)}</text>` : ''; }).join('');
+}
+function updateHouseEl(id){ const el = elById.get(id); if (el) el.setAttribute('data-s', statusOf(id)); applyFilter(); renderChips(); }
+
+/* ---------- Filtres et compteurs ---------- */
+function renderChips(){
+  const n = {}; STATUTS.forEach(s => n[s.k] = 0);
+  HOUSES.forEach(h => n[statusOf(h.id)]++);
+  $('#chips').innerHTML = STATUTS.map(s =>
+    `<button class="chip" data-k="${s.k}" aria-pressed="${filter === s.k}" title="${esc(s.l)}"><span class="sw" style="--c:var(--s-${s.k})"></span>${esc(s.c)} <b>${n[s.k]}</b></button>`).join('');
+}
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  filter = filter === b.dataset.k ? null : b.dataset.k;
+  applyFilter(); renderChips();
+});
+function applyFilter(){
+  elById.forEach((el, id) => el.classList.toggle('dim', !!filter && statusOf(id) !== filter));
+}
+
+/* ---------- Vue, déplacement, zoom ---------- */
+const view = {x:0, y:0, w:1000, h:1000};
+let maxW = 20000;
+const vh = () => view.w * svg.clientHeight / Math.max(1, svg.clientWidth);
+function applyView(){
+  view.h = vh();
+  svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+  svg.classList.toggle('zoomed', view.w < 320);
+  updateScale(); drawMe();
+}
+function screenToWorld(cx, cy){
+  const r = svg.getBoundingClientRect();
+  return [view.x + (cx - r.left) / r.width * view.w, view.y + (cy - r.top) / r.height * view.h];
+}
+const clampW = w => Math.max(15, Math.min(maxW, w));
+function zoomAt(cx, cy, f){
+  const w = screenToWorld(cx, cy), nw = clampW(view.w * f), k = nw / view.w;
+  view.x = w[0] - (w[0] - view.x) * k; view.y = w[1] - (w[1] - view.y) * k; view.w = nw;
+  applyView();
+}
+function zoomCenter(f){ const r = svg.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, f); }
+function fitAll(){
+  if (!HOUSES.length) return;
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+  HOUSES.forEach(h => { const c = h.c; minx = Math.min(minx, c[0]); maxx = Math.max(maxx, c[0]); miny = Math.min(miny, c[1]); maxy = Math.max(maxy, c[1]); });
+  const W = svg.clientWidth || 1, H = svg.clientHeight || 1;
+  const bw = Math.max(100, maxx - minx), bh = Math.max(100, maxy - miny);
+  view.w = Math.max(bw, bh * W / H) * 1.12;
+  maxW = view.w * 4;
+  view.x = (minx + maxx) / 2 - view.w / 2; view.y = (miny + maxy) / 2 - vh() / 2;
+  applyView();
+}
+function centerOn(c, w){ if (w) view.w = clampW(w); view.x = c[0] - view.w / 2; view.y = c[1] - vh() / 2; applyView(); }
+window.addEventListener('resize', () => {
+  const cx = view.x + view.w / 2, cy = view.y + view.h / 2;
+  view.x = cx - view.w / 2; view.y = cy - vh() / 2; applyView();
+});
+function updateScale(){
+  const mpp = view.w / Math.max(1, svg.clientWidth), target = 90 * mpp;
+  const nice = [5,10,20,50,100,200,500,1000,2000,5000].find(v => v >= target) || 5000;
+  $('#scale span').textContent = nice >= 1000 ? (nice / 1000) + ' km' : nice + ' m';
+  $('#scale i').style.width = (nice / mpp) + 'px';
+}
+
+const ptrs = new Map(); let gest = null;
+function startGesture(){
+  const pts = [...ptrs.values()];
+  if (pts.length === 1) gest = {mode:'pan', x0:pts[0].x, y0:pts[0].y, vx:view.x, vy:view.y, tap:true};
+  else if (pts.length >= 2){
+    const [a, b] = pts, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    gest = {mode:'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, w0: view.w, world: screenToWorld(mx, my), tap:false};
+  }
+}
+svg.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  svg.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  const multi = ptrs.size > 1;
+  startGesture(); if (multi && gest) gest.tap = false;
+});
+svg.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId) || !gest) return;
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if (gest.mode === 'pan'){
+    const dx = e.clientX - gest.x0, dy = e.clientY - gest.y0;
+    if (Math.hypot(dx, dy) > 7) gest.tap = false;
+    if (gest.tap) return;
+    const k = view.w / svg.clientWidth;
+    view.x = gest.vx - dx * k; view.y = gest.vy - dy * k; applyView();
+  } else {
+    const [a, b] = [...ptrs.values()];
+    if (!b) return;
+    const d = Math.hypot(a.x - b.x, a.y - b.y) || 1, r = svg.getBoundingClientRect();
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    view.w = clampW(gest.w0 * gest.d0 / d);
+    view.x = gest.world[0] - (mx - r.left) / r.width * view.w;
+    view.y = gest.world[1] - (my - r.top) / r.height * vh();
+    applyView();
+  }
+});
+function endPointer(e){
+  if (!ptrs.has(e.pointerId)) return;
+  const wasTap = e.type === 'pointerup' && gest && gest.mode === 'pan' && gest.tap && ptrs.size === 1;
+  ptrs.delete(e.pointerId);
+  if (wasTap) onTap(e.clientX, e.clientY);
+  if (ptrs.size) { startGesture(); gest.tap = false; } else gest = null;
+}
+svg.addEventListener('pointerup', endPointer);
+svg.addEventListener('pointercancel', endPointer);
+svg.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.0016)); }, {passive:false});
+$('#zin').onclick = () => zoomCenter(0.6);
+$('#zout').onclick = () => zoomCenter(1 / 0.6);
+$('#fit').onclick = fitAll;
+
+function houseAt(cx, cy){
+  const el = document.elementFromPoint(cx, cy), hit = el && el.closest && el.closest('[data-id]');
+  if (hit) return hit.getAttribute('data-id');
+  const w = screenToWorld(cx, cy), tol = 22 * view.w / svg.clientWidth;
+  let best = null, bd = tol * tol;
+  HOUSES.forEach(h => { const dx = h.c[0] - w[0], dy = h.c[1] - w[1], d = dx * dx + dy * dy; if (d < bd){ bd = d; best = h.id; } });
+  return best;
+}
+function onTap(cx, cy){
+  if (addMode){
+    const ll = unproj(screenToWorld(cx, cy)), id = 'ajout/' + Date.now();
+    SUIVI.custom.push({id, lon: ll[0], lat: ll[1]});
+    saveSuivi(); buildHouses(); renderHouses(); renderChips();
+    setAddMode(false); openSheet(id); $('#f-label').focus();
+    return;
+  }
+  const id = houseAt(cx, cy);
+  if (id) openSheet(id); else closeSheet();
+}
+function setAddMode(on){
+  addMode = on; svg.classList.toggle('adding', on); $('#add').setAttribute('aria-pressed', on);
+  if (on) toast('Touchez l’emplacement de la maison sur le plan.');
+}
+$('#add').onclick = () => setAddMode(!addMode);
+
+/* ---------- Fiche d'une maison ---------- */
+const fLabel = $('#f-label'), fPers = $('#f-pers'), fNote = $('#f-note');
+$('#statuts').innerHTML = STATUTS.map((s, i) =>
+  `<button class="st" data-k="${s.k}" style="--c:var(--s-${s.k});${s.on ? '--on:' + s.on : ''}" title="Raccourci clavier : ${i + 1}"><span class="sw"></span>${esc(s.l)}</button>`).join('');
+const fmt = t => new Date(t).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+const rec = id => SUIVI.houses[id] || (SUIVI.houses[id] = {status:'nv'});
+
+function openSheet(id){
+  if (current && elById.has(current)) elById.get(current).classList.remove('sel');
+  current = id;
+  const h = byId.get(id), r = SUIVI.houses[id] || {};
+  fLabel.value = r.label || h.label || '';
+  fLabel.placeholder = 'Adresse ou nom des occupants';
+  fPers.value = r.pers ?? '';
+  fNote.value = r.note || '';
+  refreshSheet();
+  $('#f-del').hidden = !h.custom;
+  $('#sheet').hidden = false;
+  const el = elById.get(id); if (el) el.classList.add('sel');
+  // Sur téléphone, garder la maison visible au-dessus de la fiche
+  if (window.innerWidth < 760){
+    const sr = svg.getBoundingClientRect(), sheetH = $('#sheet').offsetHeight;
+    const py = sr.top + (h.c[1] - view.y) / view.h * sr.height;
+    if (py > sr.bottom - sheetH - 30){ view.y = h.c[1] - (sr.height - sheetH) * 0.45 * view.h / sr.height; applyView(); }
+  }
+}
+function refreshSheet(){
+  const r = SUIVI.houses[current] || {}, s = r.status || 'nv', h = byId.get(current);
+  document.querySelectorAll('.st').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === s));
+  $('#f-meta').textContent = (r.updated ? 'Mis à jour ' + fmt(r.updated) + (r.by ? ' par ' + r.by : '') : 'Pas encore visitée') +
+    (h && !h.custom ? '. Réf. OSM ' + h.id : '');
+  $('#f-hist').innerHTML = (r.history || []).map(x => `<li>${esc(fmt(x.t))} : ${esc(LBL[x.s] || x.s)}${x.by ? ' (' + esc(x.by) + ')' : ''}</li>`).join('') || '<li>Aucun changement de statut</li>';
+}
+function closeSheet(){
+  if (current && elById.has(current)) elById.get(current).classList.remove('sel');
+  current = null; $('#sheet').hidden = true;
+}
+function setStatus(k){
+  if (!current) return;
+  const r = rec(current), t = Date.now();
+  r.status = k; r.updated = t; r.by = agent;
+  r.history = [{t, s:k, by:agent}].concat(r.history || []).slice(0, 30);
+  saveSuivi(); updateHouseEl(current); refreshSheet();
+}
+$('#statuts').addEventListener('click', e => { const b = e.target.closest('.st'); if (b) setStatus(b.dataset.k); });
+function fieldChanged(){
+  if (!current) return;
+  const r = rec(current);
+  r.label = fLabel.value.trim(); r.note = fNote.value;
+  r.pers = fPers.value === '' ? '' : Math.max(0, parseInt(fPers.value, 10) || 0);
+  r.updated = Date.now(); r.by = agent;
+  saveSuivi(); refreshSheet();
+}
+[fLabel, fPers, fNote].forEach(i => i.addEventListener('change', fieldChanged));
+fLabel.addEventListener('input', () => { if (current){ rec(current).label = fLabel.value.trim(); renderLabels(); } });
+$('#f-close').onclick = closeSheet;
+$('#f-del').onclick = () => {
+  if (!current || !confirm('Supprimer cette maison ajoutée et sa fiche ?')) return;
+  SUIVI.custom = SUIVI.custom.filter(c => c.id !== current); delete SUIVI.houses[current];
+  closeSheet(); saveSuivi(); buildHouses(); renderHouses(); renderChips();
+};
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ if (addMode) setAddMode(false); else closeSheet(); return; }
+  if (!current || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= STATUTS.length) setStatus(STATUTS[n - 1].k);
+});
+
+/* ---------- Ma position (GPS, fonctionne hors ligne) ---------- */
+let watchId = null, myPos = null, firstFix = false;
+function drawMe(){
+  if (!myPos || !P){ gMe.innerHTML = ''; return; }
+  const p = proj(myPos.ll), px = view.w / Math.max(1, svg.clientWidth);
+  gMe.innerHTML = `<circle class="acc" cx="${f1(p[0])}" cy="${f1(p[1])}" r="${Math.max(myPos.acc, 8 * px)}"/><circle class="dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="${7 * px}"/>`;
+}
+$('#geo').onclick = () => {
+  if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; myPos = null; drawMe(); $('#geo').setAttribute('aria-pressed', false); return; }
+  if (!('geolocation' in navigator)){ toast('La localisation n’est pas disponible sur cet appareil.'); return; }
+  firstFix = true; $('#geo').setAttribute('aria-pressed', true);
+  watchId = navigator.geolocation.watchPosition(pos => {
+    myPos = {ll:[pos.coords.longitude, pos.coords.latitude], acc: pos.coords.accuracy || 0};
+    if (firstFix && P){ firstFix = false; centerOn(proj(myPos.ll), Math.min(view.w, 300)); } else drawMe();
+  }, err => {
+    toast('Position introuvable : ' + (err.code === 1 ? 'autorisation refusée par le navigateur.' : 'signal GPS indisponible.'));
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null; $('#geo').setAttribute('aria-pressed', false);
+  }, {enableHighAccuracy:true, maximumAge:10000, timeout:30000});
+};
+
+/* ---------- Liste ---------- */
+const dlgList = $('#dlg-list'), listFilter = $('#list-filter');
+listFilter.innerHTML = '<option value="actifs">Toutes les maisons visitées</option><option value="all">Toutes les maisons</option>' +
+  STATUTS.map(s => `<option value="${s.k}">${esc(s.l)}</option>`).join('');
+function renderList(){
+  const f = listFilter.value;
+  const items = HOUSES.map(h => ({h, r: SUIVI.houses[h.id] || {}}))
+    .filter(({r}) => { const s = r.status || 'nv'; return f === 'all' || (f === 'actifs' ? s !== 'nv' : s === f); })
+    .sort((a, b) => (b.r.updated || 0) - (a.r.updated || 0) || labelOf(a.h).localeCompare(labelOf(b.h), 'fr', {numeric:true}));
+  const pers = items.reduce((t, {r}) => t + (+r.pers || 0), 0);
+  $('#list-sum').textContent = `${items.length} maison${items.length > 1 ? 's' : ''}, ${pers} personne${pers > 1 ? 's' : ''} déclarée${pers > 1 ? 's' : ''}`;
+  $('#list-ul').innerHTML = items.slice(0, 800).map(({h, r}) => {
+    const s = r.status || 'nv';
+    const sub = [LBL[s], r.pers !== undefined && r.pers !== '' ? r.pers + ' pers.' : '', r.updated ? fmt(r.updated) : ''].filter(Boolean).join(', ');
+    return `<li><button data-id="${esc(h.id)}"><span class="sw" style="--c:var(--s-${s})"></span><span class="t"><b>${esc(labelOf(h) || 'Bâtiment sans adresse')}</b><small>${esc(sub)}${r.note ? ' – ' + esc(r.note.slice(0, 60)) : ''}</small></span></button></li>`;
+  }).join('') || '<li class="meta">Aucune maison pour ce filtre.</li>';
+}
+listFilter.onchange = renderList;
+$('#btn-list').onclick = () => { if (!PLAN) return; renderList(); dlgList.showModal(); };
+$('#list-ul').addEventListener('click', e => {
+  const b = e.target.closest('[data-id]'); if (!b) return;
+  const h = byId.get(b.dataset.id); dlgList.close();
+  centerOn(h.c, Math.min(view.w, 220)); openSheet(h.id);
+});
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+/* ---------- Menu, imports et exports ---------- */
+const dlgMenu = $('#dlg-menu'), agentIn = $('#agent');
+agentIn.value = agent;
+agentIn.addEventListener('input', () => { agent = agentIn.value.trim(); try { localStorage.setItem(KEY_AGENT, agent); } catch(e){} });
+$('#btn-menu').onclick = () => dlgMenu.showModal();
+
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}`; };
+const suiviPayload = () => ({kind:'suivi-francheville', v:1, exported: Date.now(), by: agent, houses: SUIVI.houses, custom: SUIVI.custom});
+
+$('#m-suivi').onclick = () => { download(`suivi-francheville_${stamp()}${agent ? '_' + agent.replace(/[^\wÀ-ÿ-]+/g, '-') : ''}.json`, JSON.stringify(suiviPayload()), 'application/json'); dlgMenu.close(); };
+$('#m-full').onclick = () => {
+  if (!PLAN){ toast('Aucun plan chargé.'); return; }
+  download(`sauvegarde-francheville_${stamp()}.json`, JSON.stringify({kind:'sauvegarde-francheville', v:1, plan: PLAN, ban: BAN, suivi: suiviPayload()}), 'application/json'); dlgMenu.close();
+};
+$('#m-csv').onclick = () => {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['Identifiant','Adresse / nom','Statut','Personnes','Note','Mis à jour','Par','Latitude','Longitude'].map(q).join(';')];
+  HOUSES.slice().sort((a, b) => ORDER[statusOf(a.id)] - ORDER[statusOf(b.id)] || labelOf(a).localeCompare(labelOf(b), 'fr', {numeric:true}))
+    .forEach(h => {
+      const r = SUIVI.houses[h.id] || {}, ll = unproj(h.c);
+      rows.push([h.id, labelOf(h), LBL[r.status || 'nv'], r.pers, r.note, r.updated ? new Date(r.updated).toLocaleString('fr-FR') : '', r.by, ll[1], ll[0]].map(q).join(';'));
+    });
+  download(`tableau-francheville_${stamp()}.csv`, '\ufeff' + rows.join('\r\n'), 'text/csv'); dlgMenu.close();
+};
+$('#m-help').onclick = () => { dlgMenu.close(); showHelp(true); };
+$('#m-load').onclick = () => { dlgMenu.close(); $('#file').click(); };
+$('#help-load').onclick = () => $('#file').click();
+$('#m-reset').onclick = () => {
+  if (!confirm('Remettre toutes les maisons à « Non visité » ? Pensez à exporter le suivi avant.')) return;
+  SUIVI.houses = {}; saveSuivi(); closeSheet(); renderHouses(); renderChips(); dlgMenu.close(); toast('Tous les statuts sont remis à zéro.');
+};
+$('#m-clear').onclick = () => {
+  if (!confirm('Effacer le plan de ce navigateur ? Le suivi des maisons est conservé.')) return;
+  try { localStorage.removeItem(KEY_PLAN); } catch(e){}
+  PLAN = null; dlgMenu.close(); closeSheet(); init();
+};
+$('#copy-q').onclick = async () => {
+  const txt = $('#query').textContent;
+  try { await navigator.clipboard.writeText(txt); toast('Requête copiée.'); }
+  catch(e){ const r = document.createRange(); r.selectNodeContents($('#query')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Requête sélectionnée : copiez-la avec Ctrl+C.'); }
+};
+
+function merge(src){
+  let n = 0;
+  Object.entries(src.houses || {}).forEach(([id, inc]) => {
+    const loc = SUIVI.houses[id];
+    const hist = [].concat((loc && loc.history) || [], inc.history || []);
+    const seen = new Set();
+    const merged = hist.filter(x => { const k = x.t + x.s; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => b.t - a.t).slice(0, 30);
+    if (!loc || (inc.updated || 0) > (loc.updated || 0)){ SUIVI.houses[id] = Object.assign({}, inc, {history: merged}); n++; }
+    else loc.history = merged;
+  });
+  const ids = new Set(SUIVI.custom.map(c => c.id));
+  (src.custom || []).forEach(c => { if (!ids.has(c.id)){ SUIVI.custom.push(c); n++; } });
+  saveSuivi();
+  return n;
+}
+$('#file').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  if (/\.csv(\.gz)?$/i.test(file.name) || /\.gz$/i.test(file.name)){ importBAN(file); return; }
+  let j;
+  try { j = JSON.parse(await file.text()); } catch(err){ toast('Fichier illisible : ce n’est pas un fichier JSON ou GeoJSON.'); return; }
+  try {
+    if (j.type === 'FeatureCollection'){
+      PLAN = parseGeoJSON(j); store(KEY_PLAN, PLAN); init();
+      toast(`Plan chargé : ${PLAN.buildings.length} bâtiments. Il reste disponible hors connexion.`);
+    } else if (j.kind === 'suivi-francheville'){
+      if (!PLAN){ toast('Chargez d’abord le plan, puis le suivi.'); return; }
+      const n = merge(j); buildHouses(); renderHouses(); renderChips(); if (current) refreshSheet();
+      toast(`${n} fiche${n > 1 ? 's' : ''} mise${n > 1 ? 's' : ''} à jour depuis ${j.by ? 'le suivi de ' + j.by : 'ce fichier'}.`);
+    } else if (j.kind === 'sauvegarde-francheville'){
+      PLAN = j.plan; store(KEY_PLAN, PLAN); if (j.ban){ BAN = j.ban; store(KEY_BAN, BAN); } merge(j.suivi || {}); init();
+      toast(`Sauvegarde chargée : ${PLAN.buildings.length} bâtiments.`);
+    } else toast('Format non reconnu. Attendu : un export GeoJSON d’Overpass Turbo ou un fichier exporté depuis cette application.');
+  } catch(err){ toast(err.message); }
+});
+
+/* ---------- Import de la Base Adresse Nationale (CSV ou CSV.gz) ---------- */
+function splitCSV(line, sep){
+  if (line.indexOf('"') < 0) return line.split(sep);
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if (q){ if (ch === '"'){ if (line[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === sep){ out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+async function* readLines(file){
+  let stream = file.stream();
+  if (/\.gz$/i.test(file.name)){
+    if (typeof DecompressionStream === 'undefined') throw new Error('Ce navigateur ne sait pas ouvrir les fichiers .gz : décompressez-le d’abord.');
+    stream = stream.pipeThrough(new DecompressionStream('gzip'));
+  }
+  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = '';
+  for (;;){
+    const {value, done} = await reader.read();
+    if (done) break;
+    buf += value;
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0){ yield buf.slice(0, i).replace(/\r$/, ''); buf = buf.slice(i + 1); }
+  }
+  if (buf) yield buf.replace(/\r$/, '');
+}
+async function importBAN(file){
+  if (!PLAN){ toast('Chargez d’abord le plan, puis les adresses.'); return; }
+  toast('Lecture des adresses en cours…');
+  try {
+    let head = null, sep = ';', col = {}, total = 0;
+    const items = [], seen = new Set();
+    const pick = (...names) => { for (const n of names) if (n in col) return col[n]; return -1; };
+    let I = {};
+    for await (const line of readLines(file)){
+      if (!line) continue;
+      if (!head){
+        sep = line.split(';').length >= line.split(',').length ? ';' : ',';
+        head = splitCSV(line, sep).map(h => h.trim().toLowerCase());
+        head.forEach((h, i) => col[h] = i);
+        I = {id: pick('id','cle_interop'), num: pick('numero'), rep: pick('rep','suffixe'), voie: pick('nom_voie','voie_nom'),
+             ld: pick('nom_ld','lieudit_complement_nom'), insee: pick('code_insee','commune_insee'),
+             lon: pick('lon','long','longitude'), lat: pick('lat','latitude')};
+        if (I.num < 0 || I.lon < 0 || I.lat < 0 || I.voie < 0) throw new Error('Colonnes non reconnues : utilisez un fichier de la Base Adresse Nationale (adresse.data.gouv.fr).');
+        continue;
+      }
+      total++;
+      const c = splitCSV(line, sep);
+      if (I.insee >= 0 && c[I.insee] !== INSEE) continue;
+      const num = (c[I.num] || '').trim();
+      if (!num || num === '99999') continue;           // 99999 = lieu-dit sans numéro
+      const id = I.id >= 0 && c[I.id] ? c[I.id] : num + (c[I.rep] || '') + c[I.voie];
+      if (seen.has(id)) continue;                       // une seule position par adresse
+      const lon = parseFloat(c[I.lon]), lat = parseFloat(c[I.lat]);
+      if (!isFinite(lon) || !isFinite(lat)) continue;
+      seen.add(id);
+      const ld = I.ld >= 0 ? (c[I.ld] || '').trim() : '';
+      const l = `${num}${c[I.rep] ? ' ' + c[I.rep].trim() : ''} ${c[I.voie].trim()}${ld && ld !== c[I.voie].trim() ? ' (' + ld + ')' : ''}`;
+      items.push({id, l, ll: [r6(lon), r6(lat)]});
+    }
+    if (!items.length) throw new Error(`Aucune adresse de Francheville (code INSEE ${INSEE}) dans ce fichier.`);
+    BAN = {loaded: Date.now(), source: file.name, items};
+    store(KEY_BAN, BAN);
+    buildHouses(); renderHouses(); renderChips();
+    const sansBat = HOUSES.filter(h => h.id.startsWith('ban/')).length;
+    toast(`${items.length} adresses chargées${sansBat ? `, dont ${sansBat} sans bâtiment sur le plan (affichées en point)` : ''}.`);
+  } catch(err){ toast(err.message); }
+}
+const btnOnly = $('#m-only');
+btnOnly.setAttribute('aria-pressed', !!OPTS.onlyAddr);
+btnOnly.onclick = () => {
+  OPTS.onlyAddr = !OPTS.onlyAddr; store(KEY_OPTS, OPTS);
+  btnOnly.setAttribute('aria-pressed', OPTS.onlyAddr);
+  if (PLAN){ if (current && OPTS.onlyAddr) closeSheet(); buildHouses(); renderHouses(); renderChips(); }
+  if (OPTS.onlyAddr && !BAN) toast('Conseil : chargez d’abord les adresses BAN, sinon beaucoup de maisons seront masquées.');
+};
+
+/* ---------- Divers ---------- */
+let tt;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 4200); }
+function showHelp(closable){ $('#help').hidden = false; $('#help-close').hidden = !closable; }
+$('#help-close').onclick = () => { $('#help').hidden = true; };
+
+function init(){
+  if (!PLAN){
+    gAreas.innerHTML = gLines.innerHTML = gHouses.innerHTML = gLabels.innerHTML = '';
+    HOUSES = []; byId.clear(); elById.clear(); renderChips(); showHelp(false); return;
+  }
+  $('#help').hidden = true;
+  setupProjection(); buildHouses(); render(); renderChips();
+  requestAnimationFrame(fitAll);
+}
+init();
+
+// Fonctionnement hors connexion quand l'application est servie en ligne (iPhone, écran d'accueil)
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+})();
+</script>
+</body>
+</html>
